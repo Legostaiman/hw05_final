@@ -50,13 +50,13 @@
             <div class="col-md-9">
             {% for post in page %}
                 <!-- Начало блока с отдельным постом -->
-                    {% include "post_item.html" with post=post %}
+                    {% include "includes/post_item.html" with post=post %}
                 <!-- Конец блока с отдельным постом -->
 
                 {% endfor %}
                 <!-- Остальные посты -->
                 {% if page.has_other_pages %}
-                  {% include "paginator.html" with items=page paginator=paginator%}
+                  {% include "includes/paginator.html" with items=page paginator=paginator%}
                 {% endif %}
                 <!-- Здесь постраничная навигация паджинатора -->
 

@@ -6,14 +6,14 @@
 
     <div class="container">
 
-        {% include "menu.html" with index=True %}
+        {% include "includes/menu.html" with index=True %}
 
            <h1> Последние обновления на сайте</h1>
             <!-- Вывод ленты записей и его кэширование -->
             {% cache 20 index_page page.number %}
                     {% for post in page %}
                       <!-- Вот он, новый include! -->
-                        {% include "post_item.html" with post=post %}
+                        {% include "includes/post_item.html" with post=post %}
                     {% endfor %}
             {% endcache %}
 
@@ -21,7 +21,7 @@
 
         <!-- Вывод паджинатора -->
         {% if page.has_other_pages %}
-            {% include "paginator.html" with items=page paginator=paginator%}
+            {% include "includes/paginator.html" with items=page paginator=paginator%}
         {% endif %}
 
 {% endblock %}

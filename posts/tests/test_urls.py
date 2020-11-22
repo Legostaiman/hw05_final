@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
-from django.test import TestCase, Client
+from django.test import Client, TestCase
 from django.urls import reverse
 
 from posts.models import Post

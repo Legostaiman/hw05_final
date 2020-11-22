@@ -1,13 +1,9 @@
-from django.core.paginator import Paginator
-from django.http import HttpResponse
-from .models import Post, Group, User, Comment, Follow
-from django.shortcuts import render, get_object_or_404, redirect
-from .forms import PostForm, CommentForm
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.cache import cache_page
+from django.core.paginator import Paginator
+from django.shortcuts import get_object_or_404, redirect, render
+from .forms import CommentForm, PostForm
+from .models import Comment, Follow, Group, Post, User
 
-
-#  Тут нужно "оптимизировать" импорты
 
 def index(request):
     post_list = Post.objects.all()
@@ -79,7 +75,7 @@ def profile(request, username):
 
 
 def post_view(request, username, post_id):
-    form = CommentForm()
+    form = PostForm()
     post = get_object_or_404(Post, id=post_id)
     author = post.author
     posts_count = author.author_posts.all().count()
@@ -145,14 +141,9 @@ def add_comment(request, post_id, username):
 
 @login_required
 def follow_index(request):
-    # информация о текущем пользователе доступна в переменной request.user
-    user = request.user  # Здесь нужно собрать всех авторов в один список, а потом циклом собрать в один список их посты
+    user = request.user
     follow_list = user.follower.all()
-    following_posts = []
-    for follow_obj in follow_list:
-        posts_auth = Post.objects.filter(author_id=follow_obj.author_id)
-        for post in posts_auth:
-            following_posts.append(post)
+    following_posts = Post.objects.filter(author__following__user=request.user)
     post_list = following_posts
     paginator = Paginator(post_list, 10)
     page_number = request.GET.get("page")

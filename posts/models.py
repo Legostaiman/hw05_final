@@ -1,6 +1,6 @@
-from django.db import models
-from django.contrib.auth import get_user_model
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.db import models
 
 User = get_user_model()
 
@@ -60,7 +60,6 @@ class Comment(models.Model):
         return self.text
 
 
-# Модель системы подписки на авторов
 class Follow(models.Model):
     objects = None
     user = models.ForeignKey(User, on_delete=models.CASCADE,
@@ -74,3 +73,4 @@ class Follow(models.Model):
 
     class Meta:
         ordering = ["-subscribe_date"]
+        unique_together = ['user']

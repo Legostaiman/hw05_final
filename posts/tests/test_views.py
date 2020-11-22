@@ -1,9 +1,16 @@
 import unittest
-from posts.models import User, Post, Group
-from django.test import TestCase, Client
-from django.urls import reverse
+from io import BytesIO, StringIO
+
 from django.core.cache import cache
 from django.core.cache.utils import make_template_fragment_key
+from django.test import Client, TestCase
+from django.urls import reverse
+from PIL import Image
+
+from posts.models import Group, Post, User
+from posts.forms import PostForm
+import logging
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 
 class TestProfileCreate(TestCase):
@@ -83,9 +90,11 @@ class TestProfileCreate(TestCase):
         cache.clear()
         self.assertContains(response, post)
         for key, value in responses.items():
-            if value is not None:
+            if value is None:
+                response = client.get(reverse(key))
+                self.assertContains(response, post)
+            else:
                 response = client.get(reverse(key, args=value))
-                cache.clear()
                 self.assertContains(response, post)
 
     def test_post_edition(self):
@@ -132,34 +141,49 @@ class TestProfileCreate(TestCase):
         user = User.objects.create_user(username='foo1',
                                         password='123')
         client.force_login(user)
-        img = open('posts/test_files/file.jpg', 'rb')
+        # Тут начинает генерироваться изображение для теста
+        file = BytesIO()
+        img = Image.new('RGBA', (60, 30), color='red')
+        img.save(file, 'png')
+        file.name = 'test.png'
+        file.seek(0)
+        # Тут прекращает генерироваться изображение для теста
         group = Group(title='test', description='test', slug='test')
         group.save()
         client.post(reverse('new_post'),
                     {'author': user,
                      'group': 1,
-                     'text': 'post with image', 'image': img},
+                     'text': 'post with image', 'image': file},
                     follow=True)
         cache.clear()
         group = Group.objects.get(slug='test')
-        request = client.get(reverse('index'))
-        self.assertContains(request, '<img')
-        request = client.get(reverse('profile', args=[user]))
-        self.assertContains(request, '<img')
-        request = client.get(reverse('group', args=[group]))
-        self.assertContains(request, '<img')
+        pages = {'index': None,
+                 'profile': user,
+                 'group': group}
+        for x, y in pages.items():
+            if y is None:
+                request = client.get(reverse(x))
+                self.assertContains(request, '<img')
+            else:
+                request = client.get(reverse(x, args=[y]))
+                self.assertContains(request, '<img')
 
     def test_protect(self):
         client = Client()
+        form = PostForm
         user = User.objects.create_user(username='foo1',
                                         password='123')
         client.force_login(user)
-        img = open('posts/test_files/123.txt', 'rb')
+        image = SimpleUploadedFile('test.txt', b'this is text not image',
+                                content_type='text/plain')
         request = client.post(reverse('new_post'),
                               {'author': user,
-                               'text': 'post with image', 'image': img},
+                               'text': 'post with image', 'image': image},
                               follow=True)
-        self.assertContains(request, 'alert')
+        self.assertFormError(request, 'form', 'image',
+                             f'Загрузите правильное изображение. Файл, который'
+                             f' вы загрузили, поврежден или не является '
+                             f'изображением.')
 
     def test_cache_index(self):
         """Проверяем создается ли кеш главной страницы"""
@@ -178,7 +202,7 @@ class TestProfileCreate(TestCase):
         self.assertIn('index_page', f'{x}')
 
     def test_follow(self):
-        """Проверка работы функции подписки/отписки"""
+        """Проверка работы функции подписки"""
         client = Client()
         client_1 = Client()
         user = User.objects.create_user(username='foo1',
@@ -196,12 +220,32 @@ class TestProfileCreate(TestCase):
         request_1 = client_1.post(reverse('profile_follow', args=[user]),
                                   follow=True)
         self.assertContains(request_1, post)
+
+    def test_follow(self):
+        """Проверка работы функции отписки"""
+        client = Client()
+        client_1 = Client()
+        user = User.objects.create_user(username='foo1',
+                                        password='123')
+        user_1 = User.objects.create_user(username='foo2',
+                                          password='123')
+        client.force_login(user)
+        cache.clear()
+        client.post(reverse('new_post'),
+                    {'author': user,
+                     'text': 'test_post'},
+                    follow=True)
+        post = Post.objects.get(author=user)
+        client_1.force_login(user_1)
+        client_1.post(reverse('profile_follow', args=[user]),
+                      follow=True)
         request_1 = client_1.post(reverse('profile_unfollow', args=[user]),
                                   follow=True)
         self.assertNotContains(request_1, post)
 
     def test_massage_feed(self):
-        """Новая запись пользователя появляется в ленте тех, кто на него подписан и не появляется в ленте тех, кто не подписан на него."""
+        """Новая запись пользователя появляется в ленте тех, кто на него
+         подписан и не появляется в ленте тех, кто не подписан на него."""
         client = Client()
         user = User.objects.create_user(username='foo1',
                                         password='123')

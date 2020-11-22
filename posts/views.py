@@ -75,7 +75,7 @@ def profile(request, username):
 
 
 def post_view(request, username, post_id):
-    form = PostForm()
+    form = CommentForm()
     post = get_object_or_404(Post, id=post_id)
     author = post.author
     posts_count = author.author_posts.all().count()
